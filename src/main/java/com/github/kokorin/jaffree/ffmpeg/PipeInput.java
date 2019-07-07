@@ -43,7 +43,7 @@ public class PipeInput extends TcpInput<PipeInput> implements Input {
     }
 
     public static PipeInput pumpFrom(InputStream source, int bufferSize) {
-        return new PipeInput(new PipeSupplier(source,bufferSize));
+        return new PipeInput(new PipeSupplier(source, bufferSize));
     }
 
     private static class PipeSupplier implements Supplier {

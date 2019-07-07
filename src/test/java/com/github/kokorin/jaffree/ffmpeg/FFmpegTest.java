@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -567,6 +568,24 @@ public class FFmpegTest {
         Assert.assertNotNull(result.getVideoSize());
 
         Assert.assertTrue(getExactDuration(outputPath) > 10.);
+    }
+
+    @Test
+    public void testHttpInput() throws IOException {
+        Path tempDir = Files.createTempDirectory("jaffree");
+        Path outputPath = tempDir.resolve(VIDEO_MP4.getFileName());
+
+        try (SeekableByteChannel channel = Files.newByteChannel(VIDEO_MP4)) {
+            FFmpegResult result = FFmpeg.atPath(BIN)
+                    .addInput(new HttpInput(channel))
+                    .addOutput(UrlOutput.toPath(outputPath))
+                    .execute();
+
+            Assert.assertNotNull(result);
+            Assert.assertNotNull(result.getVideoSize());
+        }
+
+        Assert.assertTrue(getDuration(outputPath) > 10.);
     }
 
     private static double getDuration(Path path) {
