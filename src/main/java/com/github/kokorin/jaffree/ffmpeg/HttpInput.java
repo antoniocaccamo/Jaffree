@@ -17,25 +17,40 @@
 
 package com.github.kokorin.jaffree.ffmpeg;
 
-import java.io.*;
+import com.sun.net.httpserver.HttpServer;
+
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.channels.SeekableByteChannel;
 
-public class HttpInput<T extends HttpInput<T>> extends BaseInput<T> implements Input {
+public class HttpInput extends BaseInput<HttpInput> implements Input {
+    private final String fileName;
     private final SeekableByteChannel channel;
     private final ServerSocket serverSocket;
+    //private final HttpServer httpServer;
 
-    public HttpInput(SeekableByteChannel channel) {
+    public HttpInput(String fileName, SeekableByteChannel channel) {
+        this.fileName = fileName;
         this.channel = channel;
         this.serverSocket = allocateSocket();
-        setInput("http://127.0.0.1:" + serverSocket.getLocalPort());
+        //this.serverSocket = allocateServer();
+        setInput("http://127.0.0.1:" + serverSocket.getLocalPort()+ "/" + fileName);
     }
 
     protected ServerSocket allocateSocket() {
         try {
+            HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 10);
             return new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to allocate socket", e);
+        }
+    }
+
+    protected HttpServer allocateServer() {
+        try {
+            return HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 10);
         } catch (IOException e) {
             throw new RuntimeException("Failed to allocate socket", e);
         }
@@ -43,9 +58,11 @@ public class HttpInput<T extends HttpInput<T>> extends BaseInput<T> implements I
 
     @Override
     public final Runnable helperThread() {
-        final Negotiator negotiator = negotiator();
+        //return new HttpServer2(fileName, serverSocket, channel);
+        return new com.github.kokorin.jaffree.util.HttpServer(channel, serverSocket);
+        //final Negotiator negotiator = negotiator();
 
-        return new Runnable() {
+        /*return new Runnable() {
             @Override
             public void run() {
                 try {
@@ -54,7 +71,7 @@ public class HttpInput<T extends HttpInput<T>> extends BaseInput<T> implements I
                     throw new RuntimeException("Failed to read from socket " + serverSocket, e);
                 }
             }
-        };
+        };*/
     }
 
     public Negotiator negotiator() {
@@ -74,48 +91,6 @@ public class HttpInput<T extends HttpInput<T>> extends BaseInput<T> implements I
 
         @Override
         public void negotiateAndClose(ServerSocket serverSocket) {
-            boolean complete = false;
-            try (AutoCloseable toClose = serverSocket) {
-                while (!complete) {
-                    try (
-                            Socket socket = serverSocket.accept();
-                            InputStream input = socket.getInputStream();
-                            OutputStream output = socket.getOutputStream()
-                    ) {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-
-                        String verbAndVersion = reader.readLine();
-                        String range = null;
-                        while (true) {
-                            String line = reader.readLine();
-                            System.out.println(">>> " + line);
-                            if (line == null || line.isEmpty()) {
-                                break;
-                            }
-
-                            String[] headerAndValue = line.split(": ");
-                            String header = headerAndValue[0];
-                            String value = headerAndValue[1];
-                            if (header.equalsIgnoreCase("Range")) {
-                                range = value;
-                            }
-                        }
-
-                        if (range != null && !range.startsWith("bytes=")) {
-                            throw new RuntimeException("Unknown Range unit: " + range);
-                        }
-
-                        String[] startAndEnd = range.substring(6).split("-");
-                        String start = startAndEnd[0];
-                        String end = startAndEnd[1];
-
-                        long from = 0;
-                    }
-                    complete = true;
-                }
-            } catch (Exception e) {
-
-            }
         }
     }
 }
