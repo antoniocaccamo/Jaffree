@@ -14,6 +14,7 @@ import java.util.TreeMap;
 public class HttpServer implements Runnable {
     private final SeekableByteChannel channel;
     private final ServerSocket serverSocket;
+    private final Object lock = new Object();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpServer.class);
 
@@ -114,7 +115,7 @@ public class HttpServer implements Runnable {
             output.write(("Content-Length: " + channel.size() + "\r\n").getBytes());
             output.write("\r\n".getBytes());
 
-            synchronized (channel) {
+            synchronized (lock) {
                 channel.position(0);
                 IOUtil.copy(Channels.newInputStream(channel), output);
             }
@@ -138,7 +139,7 @@ public class HttpServer implements Runnable {
             output.write(("Content-Range: bytes " + firstByte + "-" + lastByte + "/" + channel.size() + "\r\n").getBytes());
             output.write("\r\n".getBytes());
 
-            synchronized (channel) {
+            synchronized (lock) {
                 channel.position(firstByte);
                 IOUtil.copy(Channels.newInputStream(channel), output, 1_000_000, length);
             }

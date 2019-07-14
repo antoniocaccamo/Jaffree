@@ -17,11 +17,10 @@
 
 package com.github.kokorin.jaffree.ffmpeg;
 
-import com.sun.net.httpserver.HttpServer;
+import com.github.kokorin.jaffree.util.HttpServer;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.channels.SeekableByteChannel;
 
@@ -41,16 +40,7 @@ public class HttpInput extends BaseInput<HttpInput> implements Input {
 
     protected ServerSocket allocateSocket() {
         try {
-            HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 10);
             return new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to allocate socket", e);
-        }
-    }
-
-    protected HttpServer allocateServer() {
-        try {
-            return HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 10);
         } catch (IOException e) {
             throw new RuntimeException("Failed to allocate socket", e);
         }
@@ -59,7 +49,7 @@ public class HttpInput extends BaseInput<HttpInput> implements Input {
     @Override
     public final Runnable helperThread() {
         //return new HttpServer2(fileName, serverSocket, channel);
-        return new com.github.kokorin.jaffree.util.HttpServer(channel, serverSocket);
+        return new HttpServer(channel, serverSocket);
         //final Negotiator negotiator = negotiator();
 
         /*return new Runnable() {
@@ -74,11 +64,11 @@ public class HttpInput extends BaseInput<HttpInput> implements Input {
         };*/
     }
 
-    public Negotiator negotiator() {
+    protected Negotiator negotiator() {
         return new HttpNegotiator(channel);
     }
 
-    public interface Negotiator {
+    protected interface Negotiator {
         void negotiateAndClose(ServerSocket serverSocket);
     }
 
