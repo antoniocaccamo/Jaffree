@@ -575,7 +575,7 @@ public class FFmpegTest {
         try (SeekableByteChannel channel = Files.newByteChannel(VIDEO_MP4)) {
             FFmpegResult result = FFmpeg.atPath(BIN)
                     .addInput(
-                            new HttpInput(VIDEO_MP4.getFileName().toString(), channel)
+                            new ChannelInput(VIDEO_MP4.getFileName().toString(), channel)
                                     .setPosition(1, TimeUnit.MINUTES)
                     )
                     .addOutput(
@@ -589,7 +589,8 @@ public class FFmpegTest {
             Assert.assertNotNull(result.getVideoSize());
         }
 
-        //Assert.assertTrue(getDuration(outputPath) > 10.);
+        Assert.assertTrue(Files.exists(outputPath));
+        Assert.assertTrue(Files.size(outputPath) > 1000);
     }
 
     private static double getDuration(Path path) {

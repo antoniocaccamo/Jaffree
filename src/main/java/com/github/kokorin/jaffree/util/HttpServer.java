@@ -1,3 +1,20 @@
+/*
+ *    Copyright  2019 Apache commons-io participants, Denis Kokorin
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *
+ */
+
 package com.github.kokorin.jaffree.util;
 
 import org.slf4j.Logger;
@@ -10,10 +27,12 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class HttpServer implements Runnable {
     private final SeekableByteChannel channel;
     private final ServerSocket serverSocket;
+    private final AtomicInteger count = new AtomicInteger();
     private final Object lock = new Object();
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpServer.class);
@@ -25,15 +44,10 @@ public class HttpServer implements Runnable {
 
     @Override
     public void run() {
-        boolean complete = false;
-        //Socket socket = null;
-        //InetSocketAddress address = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-
-        //AsynchronousServerSocketChannel.open().bind(address).
         try (AutoCloseable toClose = serverSocket) {
-
-            while (!complete) {
+            do {
                 final Socket socket = serverSocket.accept();
+                count.incrementAndGet();
 
                 new Thread(new Runnable() {
                     @Override
@@ -42,11 +56,14 @@ public class HttpServer implements Runnable {
                             serve(socket);
                         } catch (IOException e) {
                             LOGGER.warn("Failed to serve request", e);
+                        } finally {
+                            count.decrementAndGet();
                         }
                     }
                 }).start();
+
                 LOGGER.debug("Connection accepted");
-            }
+            } while (true);
         } catch (Exception e) {
             LOGGER.warn("Exception while serving request", e);
         }

@@ -25,8 +25,12 @@ public abstract class SocketInput<T extends SocketInput<T>> extends BaseInput<T>
     private final ServerSocket serverSocket;
 
     public SocketInput(String protocol) {
+        this(protocol, "");
+    }
+
+    public SocketInput(String protocol, String suffix) {
         this.serverSocket = allocateSocket();
-        setInput(protocol + "://127.0.0.1:" + serverSocket.getLocalPort());
+        setInput(protocol + "://127.0.0.1:" + serverSocket.getLocalPort() + suffix);
     }
 
     protected ServerSocket allocateSocket() {
