@@ -29,6 +29,17 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Simple HTTP server intended to work <b>only</b> with ffmpeg.
+ * <p>
+ * This class uses knowledge of how ffmpeg operates with HTTP input:
+ * <ol>
+ * <li>ffmpeg establishes HTTP connection with Range header "0-" and reads data.</li>
+ * <li>if ffmpeg needs to seek, it tries to establish one more HTTP connection with required Range,
+ * <b>without closing</b> previous connection</li>
+ * <li>if in previous stap new connection is established successfully, old one is closed</li>
+ * </ol>
+ */
 public class HttpServer implements Runnable {
     private final SeekableByteChannel channel;
     private final ServerSocket serverSocket;
@@ -57,7 +68,14 @@ public class HttpServer implements Runnable {
                         } catch (IOException e) {
                             LOGGER.warn("Failed to serve request", e);
                         } finally {
-                            count.decrementAndGet();
+                            int current = count.decrementAndGet();
+                            if (current == 0) {
+                                try {
+                                    serverSocket.close();
+                                } catch (IOException e) {
+                                    LOGGER.warn("Ignoring exception while closing socket", e);
+                                }
+                            }
                         }
                     }
                 }).start();
