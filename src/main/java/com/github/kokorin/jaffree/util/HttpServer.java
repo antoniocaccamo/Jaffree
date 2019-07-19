@@ -71,6 +71,7 @@ public class HttpServer implements Runnable {
                             int current = count.decrementAndGet();
                             if (current == 0) {
                                 try {
+                                    LOGGER.debug("Closing {}", serverSocket);
                                     serverSocket.close();
                                 } catch (IOException e) {
                                     LOGGER.warn("Ignoring exception while closing socket", e);
@@ -88,12 +89,14 @@ public class HttpServer implements Runnable {
     }
 
     protected void serve(Socket socket) throws IOException {
+        LOGGER.debug("Serving request");
+
         boolean keepAlive = true;
         try (Closeable toClose = socket) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             while (keepAlive) {
 
-                String verbAndVersion = reader.readLine();
+                String firstLine = reader.readLine();
                 Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
                 while (true) {
                     String line = reader.readLine();
@@ -104,13 +107,26 @@ public class HttpServer implements Runnable {
                     String[] nameAndValue = line.split(": ");
                     String name = nameAndValue[0];
                     String value = nameAndValue[1];
+                    LOGGER.debug("{}: {}", name, value);
+
                     headers.put(name, value);
                 }
 
-                if (verbAndVersion.startsWith("GET ")) {
+                String[] verbResourceVersion = firstLine.split(" ");
+                String verb = verbResourceVersion[0];
+                String resource = verbResourceVersion[1];
+                String version = verbResourceVersion[2];
+
+                if (!"HTTP/1.1".equalsIgnoreCase(version)) {
+                    throw new RuntimeException("Unsupported HTTP version: " + version);
+                }
+
+                if ("GET".equalsIgnoreCase(verb)) {
                     keepAlive = doGet(headers, socket.getOutputStream());
+                } else if ("POST".equalsIgnoreCase(verb)) {
+                    keepAlive = doPost(headers, socket.getInputStream());
                 } else {
-                    throw new RuntimeException("Unsupported verb: " + verbAndVersion);
+                    throw new RuntimeException("Unsupported verb: " + verbResourceVersion);
                 }
             }
         }
@@ -181,5 +197,10 @@ public class HttpServer implements Runnable {
         }
 
         return keepAlive;
+    }
+
+    protected boolean doPost(Map<String, String> headers, InputStream input) throws IOException {
+        IOUtil.copy(input, Channels.newOutputStream(channel));
+        return false;
     }
 }
